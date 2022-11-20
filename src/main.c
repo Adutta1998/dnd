@@ -112,9 +112,9 @@ int main(int argc, char const *argv[])
             updateSelective(loggedInUserId, sc);
             break;
         case 3:
-            char uid[10];
             printf("Connect User\n");
             printf("\tEnter USER-ID:");
+            char uid[10];
             fgets(uid, sizeof(uid), stdin);
             uid[strlen(uid) - 1] = '\0';
             connectuser(loggedInUserId, uid);
