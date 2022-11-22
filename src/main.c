@@ -1,5 +1,4 @@
-#include "../headers/auth.h"
-#include "../headers/dnd.h"
+#include "../headers/commonheaders.h"
 void clrscr(void)
 {
     system("clear");
@@ -7,15 +6,14 @@ void clrscr(void)
 int main(int argc, char const *argv[])
 {
     int ch;
+    clrscr();
+    dndInit();
+    printf("\t******Welcome*****\n");
 
-    printf("******************\n");
-    printf("******Welcome*****\n");
-    printf("******************\n");
-    printf("*****Into DND*****\n\n");
-
-    printf("Login\t\t(0)\n");
-    printf("Register\t(1)\n\n");
-    printf("Enter Your Choice:");
+    printf("\tLogin\t\t(0)\n");
+    printf("\tRegister\t(1)\n");
+    printf("\tShow Users\t(2)\n\n");
+    printf("\tEnter Your Choice:");
     scanf("%d", &ch);
     getchar();
     int status = 0;
@@ -68,13 +66,15 @@ int main(int argc, char const *argv[])
         registeruser(uname, phone, pwd);
         exit(0);
     }
+    else if (ch == 2)
+    {
+        showUsers();
+    }
     else
     {
         printf("Wrong Option!!");
         exit(0);
     }
-
-    dndInit();
 
     while (status == 1)
     {
@@ -126,5 +126,7 @@ int main(int argc, char const *argv[])
             exit(0);
         }
     }
+
+    doFree();
     return 0;
 }
