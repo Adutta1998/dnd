@@ -6,19 +6,11 @@
 #include <ctype.h>
 #include <string.h>
 #include <math.h>
+#include <unistd.h>
 #include <time.h>
 #include <assert.h>
 #include <locale.h>
 #include <sys/time.h>
-
-void dndInit();
-int updateGlobal(int status);
-int updateSelective(char uid[], int status);
-int connectuser(char f_uid[], char t_uid[]);
-int registeruser(char name[], char mob[], char password[]);
-int loginuser(char uid[], char password[]);
-void showUsers();
-void doFree();
 
 typedef struct User
 {
@@ -26,18 +18,27 @@ typedef struct User
     char name[10];
     char password[10];
     char mob[10];
+    struct User *next;
 } User;
-
-typedef struct Users
-{
-    User user;
-    struct Users *next;
-} Users;
 
 typedef struct
 {
     char uid[10];
     int status;
+    char phones[256];
 } Selective;
 
+User *dndInit();
+int updateGlobal(int status);
+int updateSelective(char uid[], int status);
+int connectUser(char f_uid[], char t_uid[], User *f);
+User *registerUser(char name[], char mob[], char password[], User *f);
+int loginUser(char uid[], char password[], User *f);
+void showUsers(User *f);
+void doFree(User *f);
+
+int tokenize(User *usr, char *tmpBuff);
+void removeLeading(char *str, char *str1);
+void removeTrailing(char *str);
+char *getMobileFromId(char *uid, User *f);
 #endif // HEADERS

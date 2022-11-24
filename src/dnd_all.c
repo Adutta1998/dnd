@@ -17,80 +17,66 @@ static char *generateId(char *str, size_t size)
     return str;
 }
 
-Users *c, *f, *prev;
+// Users *c, *f, *prev;
 
-int registeruser(char name[], char mob[], char password[])
+User *registerUser(char name[], char mob[], char password[], User *f)
 {
     char *uidgen = malloc(sizeof(char) * 6);
     generateId(uidgen, 6);
     printf("Your U-ID:%s. Please keep it copied", uidgen);
-    User *object = malloc(sizeof(User));
-    strcpy(object->name, name);
-    strcpy(object->uid, uidgen);
-    strcpy(object->mob, mob);
-    strcpy(object->password, password);
-    FILE *file = fopen("users", "ab");
+    User *current = (User *)malloc(sizeof(User));
+    User *previous = f;
+
+    strcpy(current->name, name);
+    strcpy(current->uid, uidgen);
+    strcpy(current->mob, mob);
+    strcpy(current->password, password);
+    FILE *file = fopen("users", "a+");
     if (file != NULL)
     {
-        fwrite(object, sizeof(User), 1, file);
-        fclose(file);
+        fprintf(file, "%s;%s;%s;%s", current->uid, current->name, current->password, current->mob);
     }
-    int num = 0;
-    FILE *fp = fopen("numusers.txt", "r");
-    fscanf(fp, "%d", &num);
-    fclose(fp);
-    num = num + 1;
+    fclose(file);
+    current->next = NULL;
+    if (f == NULL)
+        f = current;
+    else
+    {
+        while (f->next != NULL)
+            f = f->next;
+        f->next = current;
+    }
 
-    FILE *fp_ = fopen("numusers.txt", "w");
-    fprintf(fp_, "%d", num);
-    fclose(fp_);
+    // User *temp;
 
     char path[25] = "";
     char base[10] = "./status/";
     strcpy(path, base);
     strcat(path, uidgen);
-    FILE *fpdnd = fopen(path, "ab");
+    FILE *fpdnd = fopen(path, "a+");
     Selective dnd;
+
     dnd.status = 0;
     strcpy(dnd.uid, uidgen);
+    memset(dnd.phones, '\0', 256);
+    strcpy(dnd.phones, "");
     fwrite(&dnd, sizeof(Selective), 1, fpdnd);
+
     fclose(fpdnd);
 
-    printf("%s", path);
+    // printf("%s", path);
 
-    return 0;
+    return previous;
 }
 
-int loginuser(char uid[], char password[])
+int loginUser(char uid[], char password[], User *f)
 {
-    c = (Users *)malloc(sizeof(Users));
-    c->next = NULL;
-
-    User object2;
-    FILE *file = fopen("users", "rb");
-    if (file != NULL)
-    {
-        while (fread(&object2, sizeof(User), 1, file))
-        {
-            c = (Users *)malloc(sizeof(Users));
-            c->next = NULL;
-            c->user = object2;
-
-            if (f == NULL)
-                f = c;
-            else
-                prev->next = c;
-            prev = c;
-        }
-        fclose(file);
-    }
-    Users *usrs = f;
-    // int flag = 0;
+    User *usrs = f;
     while (usrs != NULL)
     {
-        if ((strcmp(usrs->user.uid, uid) == 0 && strcmp(usrs->user.password, password) == 0))
+        if ((strcmp(usrs->uid, uid) == 0 && strcmp(usrs->password, password) == 0))
         {
-            printf("Logged In!!");
+            // printf("Logged In!!");
             return 1;
         }
         usrs = usrs->next;
@@ -100,43 +86,80 @@ int loginuser(char uid[], char password[])
 
 int globalDnd = 0;
 
-void dndInit()
+User *dndInit()
 {
-    FILE *fp = fopen("globaldnd", "r");
-    fscanf(fp, "%d", &globalDnd);
-    fclose(fp);
+    FILE *fp_ = fopen("globaldnd", "r+");
+    fscanf(fp_, "%d", &globalDnd);
+    fclose(fp_);
 
-    User object2;
-    FILE *file = fopen("users", "rb");
-    if (file != NULL)
+    FILE *fp = NULL;
+    User *newNode = NULL;
+    User *head = NULL;
+    User *dd;
+    int _fSize = 0;
+    char tmpBuff[1024] = {
+        '\0',
+    };
+
+    fp = fopen("users", "r");
+    if (fp == NULL)
     {
-        while (fread(&object2, sizeof(User), 1, file))
-        {
-            c = (Users *)malloc(sizeof(Users));
-            c->next = NULL;
-            c->user = object2;
-
-            if (f == NULL)
-                f = c;
-            else
-                prev->next = c;
-            prev = c;
-        }
-        fclose(file);
+        perror("\n\tfopen() ");
+        return NULL;
     }
+
+    fseek(fp, 0L, SEEK_SET);
+    fseek(fp, 0L, SEEK_END);
+    _fSize = ftell(fp);
+    if (_fSize == 0) /* No records */
+    {
+        head = NULL;
+    }
+    else
+    {
+        fseek(fp, 0L, SEEK_SET);
+        memset(tmpBuff, '\0', 1024);
+        // head = newNode;
+        while (fgets(tmpBuff, 1024, fp))
+        {
+
+            if (head == NULL) /* first record */
+            {
+                newNode = (User *)malloc(sizeof(User));
+                newNode->next = NULL;
+                head = newNode;
+                dd = newNode;
+                tokenize(newNode, tmpBuff);
+            }
+            else /* rest of the records */
+            {
+                newNode = (User *)malloc(sizeof(User));
+                newNode->next = NULL;
+                dd->next = newNode;
+                tokenize(newNode, tmpBuff);
+                dd = dd->next;
+            }
+        }
+    }
+
+    fclose(fp);
+    return head;
 }
 
 int updateGlobal(int status)
 {
     if (globalDnd == status)
     {
-        printf("Couldn't change the status to itself");
+        printf("\tCouldn't change the status to itself\n");
+        sleep(2);
         return -1;
     }
     FILE *fp = fopen("globaldnd", "w");
     fprintf(fp, "%d", status);
     fclose(fp);
     globalDnd = status;
+    printf("\tGlobal DND is Activated.\n");
+    sleep(2);
     return 0;
 }
 
@@ -144,35 +167,53 @@ int updateSelective(char uid[], int status)
 {
     if (globalDnd == 1)
     {
-        printf("Global DND is ON. couldnt Change Anything.\n");
+        printf("\nGlobal DND is ON. \ncouldnt Change Anything.\n");
+        sleep(2);
         return -1;
     }
     char path[25] = "";
     char base[10] = "./status/";
     strcpy(path, base);
     strcat(path, uid);
-    FILE *fp = fopen(path, "rb");
+    FILE *fp = fopen(path, "r");
     Selective sel;
     fread(&sel, sizeof(Selective), 1, fp);
     if (sel.status == status)
     {
-        printf("Couldn't change the status to itself\n");
+        printf("\nCouldn't change the status to itself\n");
+        sleep(2);
         return -1;
     }
+    else
+    {
+        if (status == 1)
+        {
+            printf("\nEnter Phone numbers you want to add:");
+            memset(sel.phones, '\0', 256);
+            fgets(sel.phones, 255, stdin);
+        }
+        else
+        {
+            memset(sel.phones, '\0', 256);
+        }
+    }
     fclose(fp);
+
     sel.status = status;
     FILE *fpdnd = fopen(path, "wb");
     fwrite(&sel, sizeof(Selective), 1, fpdnd);
     fclose(fpdnd);
-
+    printf("Selective dnd is on for %s:", sel.phones);
+    sleep(2);
     return 0;
 }
 
-int connectuser(char f_uid[], char t_uid[])
+int connectUser(char f_uid[], char t_uid[], User *head)
 {
     if (globalDnd == 1)
     {
         printf("DND on Globally. Couldn't connect\n");
+        sleep(2);
         return -1;
     }
     else
@@ -185,7 +226,7 @@ int connectuser(char f_uid[], char t_uid[])
         strcpy(path, base);
         strcat(path, f_uid);
 
-        FILE *fp = fopen(path, "rb");
+        FILE *fp = fopen(path, "r");
         fread(&f, sizeof(Selective), 1, fp);
         fclose(fp);
 
@@ -193,39 +234,107 @@ int connectuser(char f_uid[], char t_uid[])
         strcpy(path, base);
         strcat(path, t_uid);
 
-        FILE *fp_ = fopen(path, "rb");
+        FILE *fp_ = fopen(path, "r");
         fread(&t, sizeof(Selective), 1, fp_);
         fclose(fp_);
+
+        char *me = getMobileFromId(f_uid, head);
 
         if (f.status == 1)
         {
             printf("Your DND is ON. Couldn't connect.\n");
+            sleep(2);
             return -1;
         }
         else if (t.status == 1)
         {
-            printf("Receivers DND is ON. Couldn't connect.\n");
-            return -1;
+            if (strstr(t.phones, me) != NULL)
+            {
+                printf("You are blocked by the receiver. Couldn't connect.\n");
+                sleep(2);
+                return -1;
+            }
+            else
+            {
+                printf("Connection Estblished\n");
+                sleep(2);
+                return 0;
+            }
         }
         else
         {
             printf("Connection Estblished\n");
+            sleep(2);
         }
     }
     return 0;
 }
 
-void showUsers()
+void showUsers(User *f)
 {
-    Users *usrs = f;
-    while (usrs != NULL)
+    User *user = f;
+    while (user != NULL)
     {
-        printf("%s\t\t%s\t\t%s\n", usrs->user.uid, usrs->user.mob, usrs->user.name);
-        usrs = usrs->next;
+        printf("\t%s\t%s\t%s\n", user->uid, user->name, user->mob);
+        user = user->next;
     }
 }
 
-void doFree()
+// void doFree(Users *f)
+// {
+//     free(f);
+// }
+int tokenize(User *usr, char *tmpBuff)
 {
-    free(f);
+    char *tokens;
+    tokens = strtok(tmpBuff, ";");
+    removeLeading(tokens, usr->uid);
+
+    tokens = strtok(NULL, ";");
+    removeLeading(tokens, usr->name);
+
+    tokens = strtok(NULL, ";");
+    removeLeading(tokens, usr->password);
+    removeTrailing(usr->password);
+    tokens = strtok(NULL, ";");
+
+    removeLeading(tokens, usr->mob);
+    removeTrailing(usr->mob);
+    usr->mob[9] = '\0';
+    return 0;
+}
+void removeTrailing(char *str)
+{
+    if ((str[strlen(str) - 1] == ' ' || str[strlen(str) - 1] == '\t' || str[strlen(str) - 1] == '\n'))
+    {
+        str[strlen(str) - 1] = '\0';
+    }
+}
+void removeLeading(char *str, char *str1)
+{
+    int idx = 0, j, k = 0;
+    while (str[idx] == ' ' || str[idx] == '\t' || str[idx] == '\n')
+    {
+        idx++;
+    }
+    for (j = idx; str[j] != '\0'; j++)
+    {
+        str1[k] = str[j];
+        k++;
+    }
+    str1[k] = '\0';
+}
+
+char *getMobileFromId(char *uid, User *f)
+{
+    User *t = f;
+    while (t != NULL)
+    {
+        if (strcmp(t->uid, uid) == 0)
+        {
+            return t->mob;
+        }
+        t = t->next;
+    }
+    return "";
 }
